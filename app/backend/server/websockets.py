@@ -1,18 +1,12 @@
 from flask_socketio import SocketIO, emit
 
+
 def register_websocket_events(socketio):
     print("Registering websocket events")
 
-    @socketio.on('connect')
-    def handle_connect():
-        print("Client connected")
-        emit('server_message', {'data': 'Welcome to the WebSocket server!'})
-
-    @socketio.on('disconnect')
-    def handle_disconnect():
-        print("Client disconnected")
-
-    @socketio.on('client_message')
-    def handle_client_message(data):
-        print(f"Received message from client: {data}")
-        emit('server_message', {'data': f"Message received: {data}"})
+    @socketio.on('get_board')
+    def handle_get_board():
+        from .app import game  # Assuming you have a Board class in game.py
+        print("Client requested the board")
+        board = game.board.create_initial_board()  # Replace with the actual function to retrieve the board
+        emit('update_board', {'board': board})

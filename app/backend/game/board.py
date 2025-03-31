@@ -5,13 +5,13 @@ class Board:
     def create_initial_board(self):
         """ Créer un plateau de 8x8 avec les positions initiales """
         initial_board = [
-            ['T', 'C', 'F', 'D', 'R', 'F', 'C', 'T'],  # Rangée des pièces noires
-            ['P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'],  # Pions noirs
+            ['TN', 'CN', 'FN', 'DN', 'RN', 'FN', 'CN', 'TN'],  # Rangée des pièces noires
+            ['PN', 'PN', 'PN', 'PN', 'PN', 'PN', 'PN', 'PN'],  # Pions noirs
             [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],  # Cases vides
             [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],  # Cases vides
             [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],  # Cases vides
             [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],  # Cases vides
-            ['P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'],  # Pions blancs
-            ['T', 'C', 'F', 'D', 'R', 'F', 'C', 'T']   # Rangée des pièces blanches
+            ['PB', 'PB', 'PB', 'PB', 'PB', 'PB', 'PB', 'PB'],  # Pions blancs
+            ['TB', 'CB', 'FB', 'DB', 'RB', 'FB', 'CB', 'TB']   # Rangée des pièces blanches
         ]
         return initial_board

@@ -7,12 +7,12 @@
     <title>Jeu d'échecs</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <script defer src="{{ url_for('static', filename='script.js') }}"></script>
 </head>
 
 <body>
     <h1>Jeu d'échecs</h1>
     <canvas id="chessboard" width="480" height="480"></canvas>
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 
 </html>

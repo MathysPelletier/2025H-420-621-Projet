@@ -1,55 +1,78 @@
+const socket = io();
 const canvas = document.getElementById("chessboard");
 const ctx = canvas.getContext("2d");
+const tileSize = 60;
 
-const squareSize = 60; // Taille d'une case
-const boardSize = 8; // Taille de l'échiquier (8x8)
+// Chargement des images des pièces
+const imagePath = "/static/assets/";
+const pieceImages = {
+    'TN': 'Tour-b.svg', 'CN': 'Cavalier-b.svg', 'FN': 'Fou-b.svg', 'DN': 'Reine-b.svg', 'RN': 'Roi-b.svg', 'PN': 'Pion-b.svg',
+    'TB': 'Tour-w.svg', 'CB': 'Cavalier-w.svg', 'FB': 'Fou-w.svg', 'DB': 'Reine-w.svg', 'RB': 'Roi-w.svg', 'PB': 'Pion-w.svg'
+};
 
-// Dessiner les cases de l'échiquier
-for (let row = 0; row < boardSize; row++) {
-    for (let col = 0; col < boardSize; col++) {
-        // Déterminer la couleur de la case
-        const isWhite = (row + col) % 2 === 0;
-        ctx.fillStyle = isWhite ? "white" : "black";
+const loadedImages = {};
 
-        // Dessiner la case
-        ctx.fillRect(col * squareSize, row * squareSize, squareSize, squareSize);
+// Charger les images des pièces
+function loadImages(callback) {
+    let imagesToLoad = Object.keys(pieceImages).length;
+    let loadedCount = 0;
+
+    Object.entries(pieceImages).forEach(([key, file]) => {
+        const img = new Image();
+        img.src = imagePath + file;
+        img.onload = () => {
+            loadedCount++;
+            if (loadedCount === imagesToLoad) callback();
+        };
+        loadedImages[key] = img;
+    });
+}
+
+// Dessiner l'échiquier
+function drawBoard() {
+    for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+            ctx.fillStyle = (row + col) % 2 === 0 ? "#eeeed2" : "#769656";
+            ctx.fillRect(col * tileSize, row * tileSize, tileSize, tileSize);
+        }
     }
 }
 
-// Ajouter un contour autour de l'échiquier
-ctx.strokeStyle = "black"; // Couleur du contour
-ctx.lineWidth = 2; // Épaisseur du contour
-ctx.strokeRect(0, 0, boardSize * squareSize, boardSize * squareSize);
-
-// Structure des pièces (tirée de board.py)
-const pieces = [
-    ["R", "N", "B", "Q", "K", "B", "N", "R"], // Rangée 1 (blancs)
-    ["P", "P", "P", "P", "P", "P", "P", "P"], // Rangée 2 (pions blancs)
-    ["", "", "", "", "", "", "", ""],         // Rangée 3
-    ["", "", "", "", "", "", "", ""],         // Rangée 4
-    ["", "", "", "", "", "", "", ""],         // Rangée 5
-    ["", "", "", "", "", "", "", ""],         // Rangée 6
-    ["p", "p", "p", "p", "p", "p", "p", "p"], // Rangée 7 (pions noirs)
-    ["r", "n", "b", "q", "k", "b", "n", "r"]  // Rangée 8 (noirs)
-];
-
-// Fonction pour dessiner une pièce
-function drawPiece(piece, x, y) {
-    if (!piece) return; // Ne rien dessiner si la case est vide
-
-    ctx.fillStyle = "red"; // Couleur des pièces (temporaire)
-    ctx.font = "40px Arial"; // Taille et police des pièces
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-
-    // Dessiner la pièce au centre de la case
-    ctx.fillText(piece, x + squareSize / 2, y + squareSize / 2);
-}
-
-// Dessiner les pièces sur l'échiquier
-for (let row = 0; row < boardSize; row++) {
-    for (let col = 0; col < boardSize; col++) {
-        const piece = pieces[row][col];
-        drawPiece(piece, col * squareSize, row * squareSize);
+// Dessiner les pièces
+function drawPieces(board) {
+    for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+            let piece = board[row][col];
+            if (piece !== " " && loadedImages[piece]) {
+                ctx.drawImage(loadedImages[piece], col * tileSize + 5, row * tileSize + 5, tileSize - 10, tileSize - 10);
+            }
+        }
     }
 }
+
+// Connexion Socket.IO
+socket.on("connect", () => {
+    socket.emit("get_board");
+});
+
+// Mise à jour du plateau via Socket.IO
+socket.on("update_board", (data) => {
+    loadImages(() => {
+        drawBoard();
+        drawPieces(data.board);
+    });
+});
+
+// Écouteur d'événements pour détecter les clics sur l'échiquier
+canvas.addEventListener("click", (event) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    // Convertir les coordonnées en index de grille
+    const col = Math.floor(x / tileSize);
+    const row = 7 - Math.floor(y / tileSize); // Inverser l'axe Y
+
+    console.log(`Case cliquée: Ligne ${row}, Colonne ${col}`);
+});
+

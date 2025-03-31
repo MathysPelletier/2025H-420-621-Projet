@@ -10,9 +10,10 @@ STATIC_DIR = os.path.join(BASE_DIR, "../../frontend/static")
 
 # Créer l'application Flask
 app = Flask(__name__, template_folder=TEMPLATES_DIR, static_folder=STATIC_DIR)
-
 # Initialiser SocketIO
 socketio = SocketIO(app)
+# Créer une instance de l'objet Game
+game = Game()
 
 @app.route("/")
 def home():
