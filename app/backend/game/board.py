@@ -3,7 +3,6 @@ class Board:
             self.board = self.create_initial_board()  
 
     def create_initial_board(self):
-        """ Créer un plateau de 8x8 avec les positions initiales """
         initial_board = [
             ['TN', 'CN', 'FN', 'DN', 'RN', 'FN', 'CN', 'TN'],  # Rangée des pièces noires
             ['PN', 'PN', 'PN', 'PN', 'PN', 'PN', 'PN', 'PN'],  # Pions noirs
