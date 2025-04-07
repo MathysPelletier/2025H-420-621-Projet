@@ -62,3 +62,16 @@ def register_websocket_events(socketio, game):
                 }, broadcast=True)
         else:
             emit('illegal_move', {'error': move_result["error"]})
+    
+    @socketio.on('reset_game')
+    def handle_reset_game():
+        game.reset()  # Appeler la méthode reset ici
+        print("Partie réinitialisée.")
+        emit('update_board', {
+            'board': game.get_board_matrix(),
+            'current_player': game.get_current_player(),
+            'game_over': False
+        }, broadcast=True)
+
+
+

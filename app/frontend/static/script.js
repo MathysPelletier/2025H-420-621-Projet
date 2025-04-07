@@ -81,31 +81,40 @@ socket.on("connect", () => {
 });
 
 socket.on("update_board", (data) => {
-    board = data.board.slice();
+    // 🔄 Réinitialiser toutes les données locales liées à l'état de jeu
+    board = [...data.board];
 
+    // Forcer reset des états internes liés à l'interaction
+    selectedPiece = null;
+    selectedCoord = null;
+    possibleMoves = [];
+    highlightedSquares = [];
+
+    console.log("Board mis à jour depuis le serveur:", board);
+
+    // Recharger les images et redessiner
     loadImages(() => {
         drawBoard();
         drawPieces(board);
     });
 
-    // Mise à jour du joueur actuel
-    if (data.current_player) {
-        const playerTurnDiv = document.getElementById("player-turn");
-        if (playerTurnDiv) {
-            const joueur = data.current_player === "white" ? "Blanc" : "Noir"; 
-            playerTurnDiv.textContent = `C'est au ${joueur}`;
-            playerTurnDiv.style.color = data.current_player === "white" ? "#D3D3D3" : "#000000";
-        }
+    // 🔁 Mettre à jour le joueur courant
+    const playerTurnDiv = document.getElementById("player-turn");
+    if (playerTurnDiv && data.current_player) {
+        const joueur = data.current_player === "white" ? "Blanc" : "Noir";
+        playerTurnDiv.textContent = `C'est au ${joueur}`;
+        playerTurnDiv.style.color = data.current_player === "white" ? "#D3D3D3" : "#000000";
     }
 
-    // Vérifier si la partie est terminée
+    // 🏁 Si partie terminée
     if (data.game_over) {
-        const winner = data.winner;  // Si le serveur renvoie un gagnant (par exemple 'white' ou 'black')
-        const message = winner ? `La partie est terminée ! ${winner === "white" ? "Blanc" : "Noir"} a gagné !` : "La partie est terminée, match nul !";
-        showPopup(message); // Afficher un popup avec le résultat de la partie
+        const winner = data.winner;
+        const message = winner
+            ? `La partie est terminée ! ${winner === "white" ? "Blanc" : "Noir"} a gagné !`
+            : "La partie est terminée, match nul !";
+        showPopup(message);
     }
 });
-
 
 
 function showPopup(message) {
@@ -193,7 +202,6 @@ window.onload = () => {
     const chessboard = document.getElementById('chessboard');
     const title = document.querySelector('h1');
 
-    // Mise en page centrée
     container.style.display = 'flex';
     container.style.flexDirection = 'column';
     container.style.alignItems = 'center';
@@ -204,14 +212,31 @@ window.onload = () => {
     title.style.marginBottom = '20px';
     chessboard.style.margin = '0';
 
-    // ⬇️ Création dynamique de la div d'affichage du joueur
+    // Affichage du joueur actuel
     const playerTurnDiv = document.createElement('div');
     playerTurnDiv.id = 'player-turn';
     playerTurnDiv.style.marginTop = '10px';
     playerTurnDiv.style.fontSize = '20px';
     playerTurnDiv.style.color = 'white';
     playerTurnDiv.textContent = "À qui de jouer : ...";
-
-    // Ajout à la suite du canvas
     container.appendChild(playerTurnDiv);
+
+    // 🔄 Bouton RESET
+    const resetBtn = document.createElement('button');
+    resetBtn.textContent = 'Réinitialiser la partie';
+    resetBtn.style.marginTop = '20px';
+    resetBtn.style.padding = '10px 20px';
+    resetBtn.style.fontSize = '16px';
+    resetBtn.style.borderRadius = '8px';
+    resetBtn.style.border = 'none';
+    resetBtn.style.cursor = 'pointer';
+    resetBtn.style.backgroundColor = '#f44336';
+    resetBtn.style.color = 'white';
+
+    resetBtn.onclick = () => {
+        socket.emit("reset_game");
+    };
+
+    container.appendChild(resetBtn);
 };
+

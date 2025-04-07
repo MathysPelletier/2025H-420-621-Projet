@@ -71,4 +71,9 @@ class Game:
                 winner = 'black'
             return winner  # Retourne le gagnant ou None en cas de match nul
         return None  # Partie en cours
+    
+    def reset(self):
+        # Cette méthode pourrait être utilisée pour réinitialiser complètement le jeu
+        self.board = chess.Board()
+        self.current_player = 'white'
 
