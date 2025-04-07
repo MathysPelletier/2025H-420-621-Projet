@@ -1,6 +1,7 @@
+'''
 class Board:
     def __init__(self):
-            self.board = self.create_initial_board()  
+        self.board = self.create_initial_board()
 
     def create_initial_board(self):
         initial_board = [
@@ -14,3 +15,4 @@ class Board:
             ['TB', 'CB', 'FB', 'DB', 'RB', 'FB', 'CB', 'TB']   # Rangée des pièces blanches
         ]
         return initial_board
+'''

@@ -1,7 +1,7 @@
 import os
 from flask import Flask, render_template
 from flask_socketio import SocketIO
-from game import Game   # Importer la classe Game depuis le module game
+from game import Game  # Importer la classe Game depuis le module game
 
 # Définir les chemins des dossiers pour les templates et les fichiers statiques
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))  # Répertoire actuel : backend/server/
@@ -25,9 +25,9 @@ def home():
     """
     return render_template("index.html")
 
-# Importer et enregistrer les événements WebSocket
+# Importer et enregistrer les événements WebSocket en passant 'game' comme argument
 from .websockets import register_websocket_events
-register_websocket_events(socketio)
+register_websocket_events(socketio, game)
 
 # Point d'entrée principal de l'application
 if __name__ == "__main__":

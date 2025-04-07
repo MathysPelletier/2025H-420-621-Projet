@@ -1,15 +1,43 @@
+/* Appliquer une police par défaut */
 body {
     font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center; /* Centrer horizontalement */
+    align-items: center;     /* Centrer verticalement */
+    height: 100vh;           /* Utiliser toute la hauteur de la fenêtre */
+    margin: 0;               /* Retirer les marges par défaut */
+    background-color: #f4f4f4; /* Couleur de fond douce */
 }
 
-.board {
-    display: grid;
-    grid-template-columns: repeat(8, 50px);
-    grid-template-rows: repeat(8, 50px);
+/* Container pour centrer l'échiquier */
+.container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    width: 100%; /* Utiliser toute la largeur de la fenêtre */
+    height: 100%; /* Utiliser toute la hauteur de la fenêtre */
 }
 
+/* Ajuster l'échiquier */
+#chessboard {
+    border: 2px solid black; /* Ajouter une bordure autour de l'échiquier */
+    background-color: #fff;  /* Fond blanc pour l'échiquier */
+}
+
+/* Cellules de l'échiquier */
 .cell {
-    width: 50px;
-    height: 50px;
+    width: 100%; /* Prendre toute la largeur de la cellule */
+    height: 100%; /* Prendre toute la hauteur de la cellule */
     border: 1px solid black;
+}
+
+/* Appliquer les couleurs de cases alternées (clair et foncé) */
+.cell:nth-child(even) {
+    background-color: #C0C0C0;
+}
+
+.cell:nth-child(odd) {
+    background-color: #333333;
 }
