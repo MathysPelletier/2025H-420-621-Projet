@@ -8,19 +8,23 @@ class Game:
         self.current_player = 'white'
     
     def make_move(self, from_row, from_col, to_row, to_col):
-        # Convertir les coordonnées en notation UCI pour python-chess
-        from_square = chess.square(from_col, 7 - from_row)  # Inverser les rangées pour correspondre à l'indexation de python-chess
-        to_square = chess.square(to_col, 7 - to_row)  # Inverser les rangées pour correspondre à l'indexation de python-chess
-
-        # Créer un mouvement en utilisant les coordonnées converties
+        from_square = chess.square(from_col, 7 - from_row)
+        to_square = chess.square(to_col, 7 - to_row)
         move = chess.Move(from_square, to_square)
-        
-        # Vérifier si le mouvement est légal
+
         if move in self.board.legal_moves:
-            self.board.push(move)  # Effectuer le mouvement sur le plateau
-            return {"success": True}  # Retourner un succès si le mouvement est valide
+            captured_piece = self.board.piece_at(to_square)
+            self.board.push(move)
+
+            captured_code = None
+            if captured_piece:
+                symbol = captured_piece.symbol().upper() if captured_piece.color == chess.WHITE else captured_piece.symbol().lower()
+                captured_code = self.convert_symbol_to_code(symbol)
+
+            return {"success": True, "captured": captured_code}
         else:
-            return {"success": False, "error": "Mouvement illégal"}  # Retourner une erreur si le mouvement est illégal
+            return {"success": False, "error": "Mouvement illégal"}
+
 
     def get_board_matrix(self):
         # Retourne une matrice 8x8 représentant l'état actuel du plateau
