@@ -33,20 +33,22 @@ const loadedImages = {};
 // Variable pour stocker l'état du plateau
 let board = [];
 
+// ➕ Variable pour stocker le nom du joueur
+let playerName = null;
+
 // Fonction pour charger les images des pièces
 function loadImages(callback) {
-    let imagesToLoad = Object.keys(pieceImages).length; // Nombre total d'images à charger
-    let loadedCount = 0; // Compteur d'images chargées
+    let imagesToLoad = Object.keys(pieceImages).length;
+    let loadedCount = 0;
 
-    // Charger chaque image
     Object.entries(pieceImages).forEach(([key, file]) => {
         const img = new Image();
-        img.src = imagePath + file; // Définir la source de l'image
+        img.src = imagePath + file;
         img.onload = () => {
-            loadedCount++; // Incrémenter le compteur à chaque chargement
-            if (loadedCount === imagesToLoad) callback(); // Appeler le callback une fois toutes les images chargées
+            loadedCount++;
+            if (loadedCount === imagesToLoad) callback();
         };
-        loadedImages[key] = img; // Stocker l'image chargée
+        loadedImages[key] = img;
     });
 }
 
@@ -54,36 +56,39 @@ function loadImages(callback) {
 function drawBoard() {
     for (let row = 0; row < 8; row++) {
         for (let col = 0; col < 8; col++) {
-            const displayRow = 7 - row; // Inverser Y pour l'affichage (échiquier orienté)
-            ctx.fillStyle = (row + col) % 2 === 0 ? "#333333" : "#C0C0C0"; // Couleur alternée des cases
-            ctx.fillRect(col * tileSize, displayRow * tileSize, tileSize, tileSize); // Dessiner une case
+            const displayRow = 7 - row;
+            ctx.fillStyle = (row + col) % 2 === 0 ? "#333333" : "#C0C0C0";
+            ctx.fillRect(col * tileSize, displayRow * tileSize, tileSize, tileSize);
         }
     }
 }
 
-// Fonction pour dessiner les pièces sur l'échiquier
+// Fonction pour dessiner les pièces
 function drawPieces(board) {
     for (let row = 0; row < 8; row++) {
         for (let col = 0; col < 8; col++) {
-            const piece = board[row][col]; // Récupérer la pièce à la position donnée
-            if (piece !== " " && loadedImages[piece]) { // Si une pièce est présente
-                const displayRow = row; // Pas d'inversion ici
-                ctx.drawImage(loadedImages[piece], col * tileSize + 5, displayRow * tileSize + 5, tileSize - 10, tileSize - 10); // Dessiner la pièce
+            const piece = board[row][col];
+            if (piece !== " " && loadedImages[piece]) {
+                const displayRow = row;
+                ctx.drawImage(loadedImages[piece], col * tileSize + 5, displayRow * tileSize + 5, tileSize - 10, tileSize - 10);
             }
         }
     }
 }
 
-// Événement déclenché lors de la connexion au serveur via Socket.IO
+// Connexion Socket.IO
 socket.on("connect", () => {
-    socket.emit("get_board"); // Demander l'état initial du plateau au serveur
+    // ➕ Envoyer le nom du joueur au serveur
+    socket.emit("register_player", { name: playerName });
+
+    // Demander l'état initial du plateau
+    socket.emit("get_board");
 });
 
-// Événement pour mettre à jour le plateau
+// Réception de la mise à jour du plateau
 socket.on("update_board", (data) => {
-    board = [...data.board]; // Mettre à jour l'état local du plateau
+    board = [...data.board];
 
-    // Réinitialiser les états internes liés à l'interaction
     selectedPiece = null;
     selectedCoord = null;
     possibleMoves = [];
@@ -91,13 +96,11 @@ socket.on("update_board", (data) => {
 
     console.log("Board mis à jour depuis le serveur:", board);
 
-    // Recharger les images et redessiner l'échiquier
     loadImages(() => {
         drawBoard();
         drawPieces(board);
     });
 
-    // Mettre à jour l'affichage du joueur courant
     const playerTurnDiv = document.getElementById("player-turn");
     if (playerTurnDiv && data.current_player) {
         const joueur = data.current_player === "white" ? "Blanc" : "Noir";
@@ -105,28 +108,24 @@ socket.on("update_board", (data) => {
         playerTurnDiv.style.color = data.current_player === "white" ? "#D3D3D3" : "#000000";
     }
 
-    // Si la partie est terminée
     if (data.game_over) {
         const winner = data.winner;
         const message = winner
             ? `La partie est terminée ! ${winner === "white" ? "Blanc" : "Noir"} a gagné !`
             : "La partie est terminée, match nul !";
-        showPopup(message); // Afficher un message de fin de partie
+        showPopup(message);
     }
 });
 
-// Fonction pour afficher un popup avec un message
+// Popup message
 function showPopup(message) {
-    let existing = document.getElementById("popup-message"); // Vérifier si un popup existe déjà
-    if (existing) {
-        existing.remove(); // Supprimer l'ancien popup
-    }
+    let existing = document.getElementById("popup-message");
+    if (existing) existing.remove();
 
-    const popup = document.createElement("div"); // Créer une div pour le popup
+    const popup = document.createElement("div");
     popup.id = "popup-message";
     popup.textContent = message;
 
-    // Appliquer le style au popup
     Object.assign(popup.style, {
         position: "fixed",
         top: "20px",
@@ -143,60 +142,59 @@ function showPopup(message) {
         fontFamily: "Arial, sans-serif",
     });
 
-    document.body.appendChild(popup); // Ajouter le popup au body
+    document.body.appendChild(popup);
 
     setTimeout(() => {
-        popup.remove(); // Supprimer le popup après 3 secondes
+        popup.remove();
     }, 3000);
 }
 
-// Écoute de l’événement de mouvement invalide
+// Mouvement invalide
 socket.on("illegal_move", (data) => {
-    showPopup(`Mouvement invalide : ${data.error}`); // Afficher un message d'erreur
+    showPopup(`Mouvement invalide : ${data.error}`);
 });
 
-// Variables pour suivre la sélection et le déplacement
+// Variables pour le suivi de la sélection
 let selectedPiece = null;
 let selectedPosition = null;
 
-// Gestion des clics sur le canvas
+// Clics sur le canvas
 canvas.addEventListener("click", (event) => {
-    const rect = canvas.getBoundingClientRect(); // Récupérer les dimensions du canvas
-    const x = event.clientX - rect.left; // Calculer la position X du clic
-    const y = event.clientY - rect.top; // Calculer la position Y du clic
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
 
-    const col = Math.floor(x / tileSize); // Calculer la colonne cliquée
-    const row = Math.floor(y / tileSize); // Calculer la ligne cliquée
+    const col = Math.floor(x / tileSize);
+    const row = Math.floor(y / tileSize);
 
     if (!selectedPiece) {
-        // Si aucune pièce n'est sélectionnée, c'est le premier clic
-        selectedPiece = board[row][col]; // Récupérer la pièce sélectionnée
-        selectedPosition = { row, col }; // Récupérer la position de la pièce
+        selectedPiece = board[row][col];
+        selectedPosition = { row, col };
 
         console.log(`Pièce sélectionnée: ${selectedPiece} à la position [${selectedPosition.row}, ${selectedPosition.col}]`);
     } else {
-        // Si une pièce est déjà sélectionnée, c'est le deuxième clic
         console.log(`Déplacement de la pièce ${selectedPiece} de [${selectedPosition.row}, ${selectedPosition.col}] à [${row}, ${col}]`);
 
-        // Envoyer la demande de déplacement au serveur
         socket.emit("move_piece", {
             from: selectedPosition,
             to: { row, col }
         });
 
-        // Réinitialiser la sélection après le déplacement
         selectedPiece = null;
         selectedPosition = null;
     }
 });
 
-// Initialisation de la mise en page et des éléments de l'interface utilisateur
+// ➕ Initialisation de la mise en page et des éléments UI
 window.onload = () => {
+    // ➕ Demande du nom
+    playerName = prompt("Entrez votre nom pour débuter la partie :");
+    if (!playerName) playerName = "Joueur anonyme";
+
     const container = document.querySelector('.container');
     const chessboard = document.getElementById('chessboard');
     const title = document.querySelector('h1');
 
-    // Centrer le contenu
     container.style.display = 'flex';
     container.style.flexDirection = 'column';
     container.style.alignItems = 'center';
@@ -207,7 +205,15 @@ window.onload = () => {
     title.style.marginBottom = '20px';
     chessboard.style.margin = '0';
 
-    // Affichage du joueur actuel
+    // ➕ Affichage du nom
+    const nameDisplay = document.createElement('div');
+    nameDisplay.textContent = `Nom du joueur : ${playerName}`;
+    nameDisplay.style.marginBottom = '10px';
+    nameDisplay.style.fontSize = '18px';
+    nameDisplay.style.color = 'black';
+    container.insertBefore(nameDisplay, title.nextSibling);
+
+    // Joueur actuel
     const playerTurnDiv = document.createElement('div');
     playerTurnDiv.id = 'player-turn';
     playerTurnDiv.style.marginTop = '10px';
@@ -216,7 +222,7 @@ window.onload = () => {
     playerTurnDiv.textContent = "À qui de jouer : ...";
     container.appendChild(playerTurnDiv);
 
-    // Bouton RESET pour réinitialiser la partie
+    // Bouton Reset
     const resetBtn = document.createElement('button');
     resetBtn.textContent = 'Réinitialiser la partie';
     resetBtn.style.marginTop = '20px';
@@ -229,8 +235,8 @@ window.onload = () => {
     resetBtn.style.color = 'white';
 
     resetBtn.onclick = () => {
-        socket.emit("reset_game"); // Envoyer une demande de réinitialisation au serveur
+        socket.emit("reset_game");
     };
 
-    container.appendChild(resetBtn); // Ajouter le bouton au conteneur
+    container.appendChild(resetBtn);
 };
