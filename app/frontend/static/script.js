@@ -264,6 +264,16 @@ function setupSocketListeners() {
             drawPieces(board);
         });
     });   
+
+    socket.on("opponent_info", (data) => {
+        const opponentDiv = document.getElementById("nom-adversaire");
+        if (data && data.name) {
+            opponentDiv.textContent = `Adversaire : ${data.name}`;
+        } else {
+            opponentDiv.textContent = `Adversaire : en attente...`;
+        }
+    });
+    
 }
 
 
@@ -305,6 +315,12 @@ window.addEventListener("DOMContentLoaded", () => {
     nameDisplay.id = 'nom-joueur';
     nameDisplay.className = 'info-block';
     nameDisplay.textContent = `Nom du joueur : ${playerName}`;
+
+    const opponentDisplay = document.createElement('div');
+    opponentDisplay.id = 'nom-adversaire';
+    opponentDisplay.className = 'info-block';
+    opponentDisplay.textContent = `Adversaire : en attente...`;
+
 
     const colorInfo = document.createElement('div');
     colorInfo.id = 'player-color';
@@ -352,7 +368,7 @@ window.addEventListener("DOMContentLoaded", () => {
     resetBtn.textContent = 'Réinitialiser la partie';
     resetBtn.onclick = () => socket.emit("reset_game");
 
-    rightPanel.append(nameDisplay, colorInfo, playerTurnDiv, chatBox, chatInput, resetBtn);
+    rightPanel.append(nameDisplay, opponentDisplay, colorInfo, playerTurnDiv, chatBox, chatInput, resetBtn);
     container.append(leftPanel, rightPanel);
 
     socket = io();

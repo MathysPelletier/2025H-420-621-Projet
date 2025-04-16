@@ -116,7 +116,17 @@ def register_websocket_events(socketio, game):
         # Envoyer l’historique du chat au nouveau joueur
         emit("chat_history", chat_history)
 
+        # Chercher l’adversaire (le joueur de la couleur opposée)
+        opponent_color = 'black' if connected_players[sid]['color'] == 'white' else 'white'
+        opponent_name = None
 
+        for other_sid, info in connected_players.items():
+            if info['color'] == opponent_color:
+                opponent_name = info['name']
+                # Envoyer le nom de l’adversaire à ce joueur
+                emit("opponent_info", {"name": opponent_name}, to=sid)
+                # Et vice-versa : envoyer ce joueur comme adversaire à l'autre joueur
+                emit("opponent_info", {"name": name}, to=other_sid)
 
     @socketio.on('disconnect')
     def handle_disconnect():
