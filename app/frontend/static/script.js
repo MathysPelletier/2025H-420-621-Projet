@@ -1,9 +1,10 @@
 // script.js avec style modernisé et disposition élégante
 let socket = null;
 
-const tileSize = 60;
-const imagePath = "/static/assets/";
+const tileSize = 60; // Taille d'une case de l'échiquier
+const imagePath = "/static/assets/"; // Chemin des images des pièces
 
+// Dictionnaire des images des pièces
 const pieceImages = {
     'TN': 'Tour-b.svg', 'CN': 'Cavalier-b.svg', 'FN': 'Fou-b.svg',
     'DN': 'Reine-b.svg', 'RN': 'Roi-b.svg', 'PN': 'Pion-b.svg',
@@ -11,16 +12,17 @@ const pieceImages = {
     'DB': 'Reine-w.svg', 'RB': 'Roi-w.svg', 'PB': 'Pion-w.svg'
 };
 
-const loadedImages = {};
-let board = [];
-let playerName = null;
-let playerColor = null;
-let selectedPiece = null;
-let selectedPosition = null;
-let capturedPiecesWhite = [];
-let capturedPiecesBlack = [];
-let possibleMoves = [];
+const loadedImages = {}; // Contient les images chargées
+let board = []; // Représentation du plateau
+let playerName = null; // Nom du joueur
+let playerColor = null; // Couleur du joueur (Blanc ou Noir)
+let selectedPiece = null; // Pièce sélectionnée
+let selectedPosition = null; // Position de la pièce sélectionnée
+let capturedPiecesWhite = []; // Pièces blanches capturées
+let capturedPiecesBlack = []; // Pièces noires capturées
+let possibleMoves = []; // Déplacements possibles pour la pièce sélectionnée
 
+// Charge les images des pièces et exécute un callback une fois terminé
 function loadImages(callback) {
     let loaded = 0;
     const total = Object.keys(pieceImages).length;
@@ -34,17 +36,18 @@ function loadImages(callback) {
     });
 }
 
+// Dessine l'échiquier
 function drawBoard() {
     const ctx = document.getElementById("chessboard").getContext("2d");
     for (let row = 0; row < 8; row++) {
         for (let col = 0; col < 8; col++) {
-            const displayRow = 7 - row;
-            ctx.fillStyle = (row + col) % 2 === 0 ? "#333333" : "#C0C0C0";
+            const displayRow = 7 - row; // Inverse les lignes pour correspondre à l'affichage
+            ctx.fillStyle = (row + col) % 2 === 0 ? "#333333" : "#C0C0C0"; // Couleur des cases
             ctx.fillRect(col * tileSize, displayRow * tileSize, tileSize, tileSize);
         }
     }
 
-    // Highlight possible moves
+    // Met en surbrillance les déplacements possibles
     possibleMoves.forEach(move => {
         const x = move.to_col * tileSize;
         const y = (move.to_row) * tileSize;
@@ -53,19 +56,7 @@ function drawBoard() {
     });
 }
 
-function drawPieces(board) {
-    const ctx = document.getElementById("chessboard").getContext("2d");
-    for (let row = 0; row < 8; row++) {
-        for (let col = 0; col < 8; col++) {
-            const piece = board[row][col];
-            if (piece !== " " && loadedImages[piece]) {
-                const displayRow = row;
-                ctx.drawImage(loadedImages[piece], col * tileSize + 5, displayRow * tileSize + 5, tileSize - 10, tileSize - 10);
-            }
-        }
-    }
-}
-
+// Dessine les pièces sur l'échiquier
 function drawPieces(board) {
     const ctx = document.getElementById("chessboard").getContext("2d");
     for (let row = 0; row < 8; row++) {
@@ -78,7 +69,7 @@ function drawPieces(board) {
         }
     }
 
-    // Highlight possible moves
+    // Met en surbrillance les déplacements possibles
     possibleMoves.forEach(move => {
         const ctx = document.getElementById("chessboard").getContext("2d");
         ctx.fillStyle = "rgba(0, 255, 0, 0.4)";
@@ -88,6 +79,7 @@ function drawPieces(board) {
     });
 }
 
+// Met à jour l'affichage des pièces capturées
 function updateCapturedDisplay() {
     const whiteDiv = document.getElementById("captured-white");
     const blackDiv = document.getElementById("captured-black");
@@ -112,30 +104,7 @@ function updateCapturedDisplay() {
     });
 }
 
-function updateCapturedDisplay() {
-    const whiteDiv = document.getElementById("captured-white");
-    const blackDiv = document.getElementById("captured-black");
-    whiteDiv.innerHTML = "";
-    blackDiv.innerHTML = "";
-
-    capturedPiecesWhite.forEach(code => {
-        const img = loadedImages[code];
-        if (img) {
-            const clone = img.cloneNode();
-            clone.style.width = "30px";
-            whiteDiv.appendChild(clone);
-        }
-    });
-    capturedPiecesBlack.forEach(code => {
-        const img = loadedImages[code];
-        if (img) {
-            const clone = img.cloneNode();
-            clone.style.width = "30px";
-            blackDiv.appendChild(clone);
-        }
-    });
-}
-
+// Affiche un message popup temporaire
 function showPopup(message) {
     let existing = document.getElementById("popup-message");
     if (existing) existing.remove();
@@ -164,7 +133,7 @@ function showPopup(message) {
     setTimeout(() => popup.remove(), 3000);
 }
 
-
+// Configure les écouteurs d'événements pour le socket
 function setupSocketListeners() {
     socket.on("connect", () => {
         if (!playerName || playerName.trim() === "") {
@@ -176,6 +145,7 @@ function setupSocketListeners() {
         socket.emit("get_board");
     });
 
+    // Met à jour le plateau lorsque le serveur envoie des données
     socket.on("update_board", (data) => {
         board = [...data.board];
         selectedPiece = null;
@@ -194,7 +164,6 @@ function setupSocketListeners() {
             capturedPiecesBlack = [];
             updateCapturedDisplay();
         }
-        
 
         loadImages(() => {
             drawBoard();
@@ -216,10 +185,12 @@ function setupSocketListeners() {
         possibleMoves = [];
     });
 
+    // Affiche un message d'erreur en cas de mouvement invalide
     socket.on("illegal_move", (data) => {
         showPopup(`Mouvement invalide : ${data.error}`);
     });
 
+    // Définit le rôle du joueur (Blanc, Noir ou Spectateur)
     socket.on("player_role", (data) => {
         playerColor = data.color;
         const colorText = {
@@ -238,6 +209,7 @@ function setupSocketListeners() {
         }
     });
 
+    // Affiche les messages de chat reçus
     socket.on("chat_message", (data) => {
         const chatBox = document.getElementById("chat-box");
         const msg = document.createElement("div");
@@ -246,6 +218,7 @@ function setupSocketListeners() {
         chatBox.scrollTop = chatBox.scrollHeight;
     });
 
+    // Charge l'historique des messages de chat
     socket.on("chat_history", (messages) => {
         const chatBox = document.getElementById("chat-box");
         chatBox.innerHTML = "";
@@ -257,14 +230,16 @@ function setupSocketListeners() {
         chatBox.scrollTop = chatBox.scrollHeight;
     });
 
+    // Met à jour les déplacements possibles pour la pièce sélectionnée
     socket.on("possible_moves", (moves) => {
         possibleMoves = moves;
         loadImages(() => {
             drawBoard();
             drawPieces(board);
         });
-    });   
+    });
 
+    // Met à jour les informations sur l'adversaire
     socket.on("opponent_info", (data) => {
         const opponentDiv = document.getElementById("nom-adversaire");
         if (data && data.name) {
@@ -273,10 +248,9 @@ function setupSocketListeners() {
             opponentDiv.textContent = `Adversaire : en attente...`;
         }
     });
-    
 }
 
-
+// Configure l'interface utilisateur et initialise le socket
 window.addEventListener("DOMContentLoaded", () => {
     playerName = prompt("Entrez votre nom pour débuter la partie :") || "Joueur anonyme";
 
@@ -284,6 +258,7 @@ window.addEventListener("DOMContentLoaded", () => {
     const chessboard = document.getElementById('chessboard');
     const title = document.querySelector('h1');
 
+    // Configure le style de la disposition
     container.style.display = 'flex';
     container.style.flexDirection = 'row';
     container.style.alignItems = 'flex-start';
@@ -293,6 +268,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
     title.style.display = 'none';
 
+    // Crée le panneau gauche contenant l'échiquier et les pièces capturées
     const leftPanel = document.createElement('div');
     leftPanel.className = 'left-panel';
 
@@ -308,6 +284,7 @@ window.addEventListener("DOMContentLoaded", () => {
     leftPanel.appendChild(chessboard);
     leftPanel.appendChild(capturedWhite);
 
+    // Crée le panneau droit contenant les informations et le chat
     const rightPanel = document.createElement('div');
     rightPanel.className = 'right-panel';
 
@@ -320,7 +297,6 @@ window.addEventListener("DOMContentLoaded", () => {
     opponentDisplay.id = 'nom-adversaire';
     opponentDisplay.className = 'info-block';
     opponentDisplay.textContent = `Adversaire : en attente...`;
-
 
     const colorInfo = document.createElement('div');
     colorInfo.id = 'player-color';
@@ -353,6 +329,7 @@ window.addEventListener("DOMContentLoaded", () => {
     chatInput.style.background = "#2c2c2c";
     chatInput.style.color = "#eee";
 
+    // Envoie un message de chat lorsque l'utilisateur appuie sur Entrée
     chatInput.addEventListener("keypress", (e) => {
         if (e.key === "Enter" && chatInput.value.trim() !== "") {
             socket.emit("chat_message", {
@@ -371,9 +348,10 @@ window.addEventListener("DOMContentLoaded", () => {
     rightPanel.append(nameDisplay, opponentDisplay, colorInfo, playerTurnDiv, chatBox, chatInput, resetBtn);
     container.append(leftPanel, rightPanel);
 
-    socket = io();
-    setupSocketListeners();
+    socket = io(); // Initialise le socket
+    setupSocketListeners(); // Configure les écouteurs d'événements
 
+    // Gère les clics sur l'échiquier
     chessboard.addEventListener("click", (event) => {
         const rect = chessboard.getBoundingClientRect();
         const x = event.clientX - rect.left;
