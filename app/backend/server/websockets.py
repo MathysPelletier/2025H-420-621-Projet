@@ -1,21 +1,27 @@
-from flask_socketio import SocketIO, emit
-from game import Game
-from flask import request
-import chess
+from flask_socketio import SocketIO, emit  # Importation des modules nécessaires pour les websockets
+from game import Game  # Importation de la classe Game pour gérer la logique du jeu
+from flask import request  # Pour accéder aux informations de la requête
+import chess  # Bibliothèque pour manipuler les échecs
+import chess.engine  # Pour interagir avec un moteur d'échecs comme Stockfish
+import atexit  # Pour exécuter du code lors de la fermeture de l'application
 
-# Stocke les joueurs connectés et leur rôle
+# Charger le moteur d'échecs Stockfish (chemin d'accès à adapter selon votre projet)
+engine = chess.engine.SimpleEngine.popen_uci("../../engine/stockfish/stockfish.exe")
+
+# Dictionnaire pour stocker les joueurs connectés et leur rôle (Blancs, Noirs ou spectateurs)
 connected_players = {}
 
-# Historique des messages du chat
+# Liste pour stocker l'historique des messages du chat
 chat_history = []
 
-# Crée un objet Game global
+# Crée un objet Game global pour gérer l'état du jeu
 game = Game()
 
+# Fonction pour enregistrer les événements websocket
 def register_websocket_events(socketio, game):
     print("Registering websocket events")
 
-    # Gestionnaire d'événement pour récupérer l'état du plateau
+    # Événement pour récupérer l'état actuel du plateau
     @socketio.on('get_board')
     def handle_get_board():
         board_matrix = game.get_board_matrix()  # Obtenir la matrice du plateau
@@ -26,7 +32,7 @@ def register_websocket_events(socketio, game):
             'current_player': current_player
         })
 
-    # Gestionnaire d'événement pour mettre à jour le plateau avec une FEN
+    # Événement pour mettre à jour le plateau avec une FEN (notation spécifique des échecs)
     @socketio.on('set_board')
     def handle_set_board(data):
         fen = data.get('fen')  # Récupérer la FEN envoyée par le client
@@ -42,16 +48,18 @@ def register_websocket_events(socketio, game):
         else:
             print("FEN invalide reçue.")
 
-    # Gestionnaire d'événement pour effectuer un déplacement de pièce
+    # Événement pour gérer le déplacement d'une pièce
     @socketio.on('move_piece')
     def handle_move_piece(data):
         sid = request.sid  # Identifiant de session du joueur
-        player_info = connected_players.get(sid)
+        player_info = connected_players.get(sid)  # Récupérer les informations du joueur
 
+        # Vérifier si le joueur est enregistré
         if not player_info:
             emit("illegal_move", {"error": "Joueur non enregistré"})
             return
 
+        # Vérifier si c'est le tour du joueur
         if player_info['color'] != game.get_current_player():
             emit("illegal_move", {"error": "Ce n'est pas votre tour"})
             return
@@ -64,11 +72,17 @@ def register_websocket_events(socketio, game):
 
         # Effectuer le déplacement
         move_result = game.make_move(from_row, from_col, to_row, to_col)
+        if not move_result["success"]:
+            emit("illegal_move", {"error": move_result.get("error", "Mouvement illégal")})
+            return
 
+        # Si le déplacement est valide, mettre à jour le plateau
         if move_result["success"]:
             board_matrix = game.get_board_matrix()
             current_player = game.get_current_player()
             winner = game.is_game_over()  # Vérifier si la partie est terminée
+
+            # Si la partie est terminée, envoyer les informations du gagnant
             if winner:
                 emit('update_board', {
                     'board': board_matrix,
@@ -78,15 +92,50 @@ def register_websocket_events(socketio, game):
                     'winner': winner
                 }, broadcast=True)
             else:
+                # Sinon, mettre à jour le plateau pour tous les joueurs
                 emit('update_board', {
                     'board': board_matrix,
                     'current_player': current_player,
                     'captured': move_result.get("captured")
                 }, broadcast=True)
-        else:
-            emit("illegal_move", {"error": move_result["error"]})
 
-    # Gestionnaire d'événement pour réinitialiser la partie
+            # Si le mode est solo et que c'est au tour de l'ordinateur (Noirs), faire jouer l'IA
+            if player_info['mode'] == 'solo' and game.get_current_player() == 'black':
+                thinking_time = 0.1  # Temps de réflexion par défaut (facile)
+
+                # Ajuster le temps de réflexion selon la difficulté
+                if player_info['difficulty'] == "modere":
+                    thinking_time = 0.5  # 500 ms
+                elif player_info['difficulty'] == "difficile":
+                    thinking_time = 1.5  # 1500 ms
+            
+                # Faire jouer l'IA avec Stockfish
+                result = engine.play(game.board, chess.engine.Limit(time=thinking_time))
+                ai_move = result.move
+                if ai_move:
+                    game.board.push(ai_move)  # Appliquer le coup de l'IA
+
+                    # Mettre à jour le plateau après le coup de l'IA
+                    board_matrix = game.get_board_matrix()
+                    current_player = game.get_current_player()
+                    winner = game.is_game_over()
+
+                    if winner:
+                        emit('update_board', {
+                            'board': board_matrix,
+                            'current_player': current_player,
+                            'game_over': True,
+                            'captured': None,
+                            'winner': winner
+                        }, broadcast=True)
+                    else:
+                        emit('update_board', {
+                            'board': board_matrix,
+                            'current_player': current_player,
+                            'captured': None
+                        }, broadcast=True)
+
+    # Événement pour réinitialiser la partie
     @socketio.on('reset_game')
     def handle_reset_game():
         game.reset()  # Réinitialiser le jeu
@@ -97,44 +146,52 @@ def register_websocket_events(socketio, game):
             'game_over': False
         }, broadcast=True)
 
-    # Gestionnaire d'événement pour enregistrer un joueur
+    # Événement pour enregistrer un joueur
     @socketio.on("register_player")
     def handle_register_player(data):
         sid = request.sid  # Identifiant de session du joueur
         name = data.get("name", "Anonyme")  # Nom du joueur
+        mode = data.get("mode", "multi")  # Mode de jeu (solo ou multi)
+        difficulty = data.get("difficulty", "facile")  # Difficulté pour le mode solo
 
-        # Extraire la liste des couleurs déjà assignées
+        # Vérifier les couleurs déjà assignées
         assigned_colors = [info['color'] for info in connected_players.values()]
 
-        # Assigner une couleur ou spectateur au joueur
-        if 'white' not in assigned_colors:
-            connected_players[sid] = {'name': name, 'color': 'white'}
-            print(f"{name} est assigné aux Blancs")
-        elif 'black' not in assigned_colors:
-            connected_players[sid] = {'name': name, 'color': 'black'}
-            print(f"{name} est assigné aux Noirs")
+        if mode == "solo":
+            # En mode solo, le joueur est toujours Blancs
+            connected_players[sid] = {'name': name, 'color': 'white', 'mode': 'solo', 'difficulty': difficulty}
+            print(f"{name} joue en mode solo")
+            emit("player_role", {'color': 'white'})
+            emit("chat_history", chat_history)
+
+            # Informer que l'adversaire est l'ordinateur
+            emit("opponent_info", {"name": "Ordinateur"}, to=sid)
+
         else:
-            connected_players[sid] = {'name': name, 'color': 'spectator'}
-            print(f"{name} est assigné comme spectateur")
+            # En mode multi, assigner une couleur ou spectateur
+            if 'white' not in assigned_colors:
+                connected_players[sid] = {'name': name, 'color': 'white', 'mode': 'multi'}
+                print(f"{name} est assigné aux Blancs (multi)")
+            elif 'black' not in assigned_colors:
+                connected_players[sid] = {'name': name, 'color': 'black', 'mode': 'multi'}
+                print(f"{name} est assigné aux Noirs (multi)")
+            else:
+                connected_players[sid] = {'name': name, 'color': 'spectator', 'mode': 'multi'}
+                print(f"{name} est spectateur (multi)")
 
-        # Informer le client de son rôle
-        emit("player_role", {'color': connected_players[sid]['color']})
-        # Envoyer l’historique du chat au nouveau joueur
-        emit("chat_history", chat_history)
+            emit("player_role", {'color': connected_players[sid]['color']})
+            emit("chat_history", chat_history)
 
-        # Chercher l’adversaire (le joueur de la couleur opposée)
-        opponent_color = 'black' if connected_players[sid]['color'] == 'white' else 'white'
-        opponent_name = None
+            # Gérer les informations sur l'adversaire en mode multi
+            opponent_color = 'black' if connected_players[sid]['color'] == 'white' else 'white'
+            opponent_name = None
+            for other_sid, info in connected_players.items():
+                if info['color'] == opponent_color:
+                    opponent_name = info['name']
+                    emit("opponent_info", {"name": opponent_name}, to=sid)
+                    emit("opponent_info", {"name": name}, to=other_sid)
 
-        for other_sid, info in connected_players.items():
-            if info['color'] == opponent_color:
-                opponent_name = info['name']
-                # Envoyer le nom de l’adversaire à ce joueur
-                emit("opponent_info", {"name": opponent_name}, to=sid)
-                # Et vice-versa : envoyer ce joueur comme adversaire à l'autre joueur
-                emit("opponent_info", {"name": name}, to=other_sid)
-
-    # Gestionnaire d'événement pour gérer la déconnexion d'un joueur
+    # Événement pour gérer la déconnexion d'un joueur
     @socketio.on('disconnect')
     def handle_disconnect():
         sid = request.sid  # Identifiant de session du joueur
@@ -142,7 +199,7 @@ def register_websocket_events(socketio, game):
             print(f"{connected_players[sid]['name']} s'est déconnecté")
             del connected_players[sid]
 
-    # Gestionnaire d'événement pour gérer les messages du chat
+    # Événement pour gérer les messages du chat
     @socketio.on("chat_message")
     def handle_chat_message(data):
         name = data.get("name", "Anonyme")  # Nom de l'expéditeur
@@ -151,13 +208,13 @@ def register_websocket_events(socketio, game):
             message = {"name": name, "text": text}
             chat_history.append(message)  # Ajouter le message à l'historique
 
-            # Optionnel : limiter la taille de l'historique
+            # Limiter la taille de l'historique à 100 messages
             if len(chat_history) > 100:
                 chat_history.pop(0)
 
             emit("chat_message", message, broadcast=True)
 
-    # Gestionnaire d'événement pour obtenir les déplacements possibles
+    # Événement pour obtenir les déplacements possibles pour une pièce
     @socketio.on("get_possible_moves")
     def handle_get_possible_moves(data):
         row = data.get("row")  # Ligne de la pièce sélectionnée
@@ -177,3 +234,8 @@ def register_websocket_events(socketio, game):
             for move in legal_moves if move.from_square == square
         ]
         emit("possible_moves", moves_from_square)
+
+    # Fonction exécutée à la fermeture de l'application pour arrêter le moteur d'échecs
+    @atexit.register
+    def shutdown():
+        engine.quit()
